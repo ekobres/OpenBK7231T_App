@@ -823,11 +823,13 @@ static int http_rest_get_info(http_request_t* request) {
 	hprintf255(request, "\"build\":\"%s\",", g_build_str);
 	hprintf255(request, "\"ip\":\"%s\",", HAL_GetMyIPString());
 	hprintf255(request, "\"mac\":\"%s\",", HAL_GetMACStr(macstr));
+	hprintf255(request, "\"flags\":\"%ld\",", *((long int*)&g_cfg.genericFlags));
 	hprintf255(request, "\"mqtthost\":\"%s:%d\",", CFG_GetMQTTHost(), CFG_GetMQTTPort());
 	hprintf255(request, "\"mqtttopic\":\"%s\",", CFG_GetMQTTClientId());
 	hprintf255(request, "\"chipset\":\"%s\",", PLATFORM_MCU_NAME);
 	hprintf255(request, "\"webapp\":\"%s\",", CFG_GetWebappRoot());
-
+	
+	hprintf255(request, "\"startcmd\":\"%s\",", CFG_GetShortStartupCommand());
 #ifndef OBK_DISABLE_ALL_DRIVERS
 	hprintf255(request, "\"supportsSSDP\":%d,", DRV_IsRunning("SSDP") ? 1 : 0);
 #else
@@ -1681,13 +1683,38 @@ static int http_rest_post_channels(http_request_t* request) {
 }
 
 
+
 static int http_rest_post_cmd(http_request_t* request) {
 	commandResult_t res;
+	int code;
+	const char *reply;
+	const char *type;
 	const char* cmd = request->bodystart;
 	res = CMD_ExecuteCommand(cmd, COMMAND_FLAG_SOURCE_CONSOLE);
+	reply = CMD_GetResultString(res);
 	if (1) {
-		addLogAdv(LOG_INFO, LOG_FEATURE_CMD, "[WebApp Cmd '%s' Result] %s", cmd, CMD_GetResultString(res));
+		addLogAdv(LOG_INFO, LOG_FEATURE_CMD, "[WebApp Cmd '%s' Result] %s", cmd, reply);
 	}
-	return http_rest_error(request, 200, "OK");
+	if (res != CMD_RES_OK) {
+		type = "error";
+		if (res == CMD_RES_UNKNOWN_COMMAND) {
+			code = 501;
+		}
+		else {
+			code = 400;
+		}
+	}
+	else {
+		type = "success";
+		code = 200;
+	}
+
+	request->responseCode = code;
+	http_setup(request, httpMimeTypeJson);
+	hprintf255(request, "{\"%s\":%d, \"msg\":\"%s\", \"res\":", type, code, reply);
+	JSON_ProcessCommandReply(cmd, skipToNextWord(cmd), request, (jsonCb_t)hprintf255, COMMAND_FLAG_SOURCE_HTTP);
+	hprintf255(request, "}", code, reply);
+	poststr(request, NULL);
+	return 0;
 }
 

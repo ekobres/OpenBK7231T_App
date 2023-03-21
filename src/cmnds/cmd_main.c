@@ -10,6 +10,8 @@
 #include "../hal/hal_adc.h"
 #include "../hal/hal_flashVars.h"
 
+
+
 #ifdef ENABLE_LITTLEFS
 #include "../littlefs/our_lfs.h"
 #endif
@@ -187,18 +189,6 @@ static commandResult_t CMD_CrashNull(const void* context, const char* cmd, const
 
 	return CMD_RES_OK;
 }
-static commandResult_t CMD_SimonTest(const void* context, const char* cmd, const char* args, int cmdFlags) {
-	ADDLOG_INFO(LOG_FEATURE_CMD, "CMD_SimonTest: ir test routine");
-
-#ifdef PLATFORM_BK7231T
-	//stackCrash(0);
-	//CrashMalloc();
-	// anything
-#endif
-
-
-	return CMD_RES_OK;
-}
 
 static commandResult_t CMD_Restart(const void* context, const char* cmd, const char* args, int cmdFlags) {
 	int delaySeconds;
@@ -365,27 +355,12 @@ static commandResult_t runcmd(const void* context, const char* cmd, const char* 
 	return CMD_ExecuteCommand(c, cmdFlags);
 }
 
-// run an aliased command
-static commandResult_t CMD_CreateAliasForCommand(const void* context, const char* cmd, const char* args, int cmdFlags) {
-	const char* alias;
-	const char* ocmd;
+commandResult_t CMD_CreateAliasHelper(const char *alias, const char *ocmd) {
 	char* cmdMem;
 	char* aliasMem;
 	command_t* existing;
 
-	Tokenizer_TokenizeString(args, 0);
-	// following check must be done after 'Tokenizer_TokenizeString',
-	// so we know arguments count in Tokenizer. 'cmd' argument is
-	// only for warning display
-	if (Tokenizer_CheckArgsCountAndPrintWarning(cmd, 2)) {
-		return CMD_RES_NOT_ENOUGH_ARGUMENTS;
-	}
-
-	alias = Tokenizer_GetArg(0);
-	ocmd = Tokenizer_GetArgFrom(1);
-
 	existing = CMD_Find(alias);
-
 	if (existing != 0) {
 		ADDLOG_INFO(LOG_FEATURE_EVENT, "CMD_Alias: the alias you are trying to use is already in use (as an alias or as a command)");
 		return CMD_RES_BAD_ARGUMENT;
@@ -401,6 +376,35 @@ static commandResult_t CMD_CreateAliasForCommand(const void* context, const char
 	//cmddetail:"fn":"runcmd","file":"cmnds/cmd_test.c","requires":"",
 	//cmddetail:"examples":""}
 	CMD_RegisterCommand(aliasMem, runcmd, cmdMem);
+	return CMD_RES_OK;
+}
+// run an aliased command
+static commandResult_t CMD_CreateAliasForCommand(const void* context, const char* cmd, const char* args, int cmdFlags) {
+	const char* alias;
+	const char* ocmd;
+
+	Tokenizer_TokenizeString(args, 0);
+	// following check must be done after 'Tokenizer_TokenizeString',
+	// so we know arguments count in Tokenizer. 'cmd' argument is
+	// only for warning display
+	if (Tokenizer_CheckArgsCountAndPrintWarning(cmd, 2)) {
+		return CMD_RES_NOT_ENOUGH_ARGUMENTS;
+	}
+
+	alias = Tokenizer_GetArg(0);
+	ocmd = Tokenizer_GetArgFrom(1);
+
+	return CMD_CreateAliasHelper(alias, ocmd);
+}
+static commandResult_t CMD_SimonTest(const void* context, const char* cmd, const char* args, int cmdFlags) {
+	ADDLOG_INFO(LOG_FEATURE_CMD, "CMD_SimonTest: ir test routine");
+
+#ifdef PLATFORM_BK7231T
+	//stackCrash(0);
+	//CrashMalloc();
+	// anything
+#endif
+
 	return CMD_RES_OK;
 }
 void CMD_Init_Early() {
@@ -508,6 +512,7 @@ void CMD_Init_Early() {
 			CMD_UART_Init();
 		}
 	}
+	//DRV_InitFlashMemoryTestFunctions();
 }
 
 void CMD_Init_Delayed() {

@@ -222,6 +222,7 @@ OSStatus rtos_create_thread( beken_thread_t* thread,
 							beken_thread_function_t function,
 							uint32_t stack_size, beken_thread_arg_t arg );
 typedef unsigned int u32;
+		
 
 #elif PLATFORM_XR809
 
@@ -372,6 +373,7 @@ int wal_stricmp(const char *a, const char *b) ;
 
 #endif
 
+const char* skipToNextWord(const char* p);
 char *strdup(const char *s);
 int wal_stricmp(const char *a, const char *b);
 int wal_strnicmp(const char *a, const char *b, int count);
